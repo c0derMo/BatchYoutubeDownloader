@@ -1,5 +1,6 @@
 from ffmpy import FFmpeg, FFRuntimeError
 from yt_dlp import YoutubeDL
+from yt_dlp.postprocessor import PostProcessor
 from pathlib import Path
 import argparse
 import sys
@@ -7,10 +8,22 @@ import re
 import os
 import glob
 
+
+class TrimPostProcessor(PostProcessor):
+    def __init__(self, starting_time, duration, final_filename, override):
+        super().__init__(self)
+        self.starting_time = starting_time
+        self.duration = duration
+        self.final_filename = final_filename
+        self.override = override
+    def run(self, info):
+        cut_video(info.get("filepath"), self.starting_time, self.duration, self.final_filename, self.override)
+        return [], info
+
 def download_hook(d, starting_time, duration, final_filename, override):
     if d.get("status") == "finished":
         print("")
-        print("Finished downloading video as " + d.get("filename") + ".")
+        print("Finished downloading audio as " + d.get("filename") + ".")
         print("Cutting video " + d.get("filename") + " from starting time " + starting_time + " to duration " + duration + "...")
         cut_video(d.get("filename"), starting_time, duration, final_filename, override)
         print("Saved final video as " + final_filename + ".")
@@ -18,13 +31,23 @@ def download_hook(d, starting_time, duration, final_filename, override):
 
 def download_video(video_link, starting_time, duration, final_filename, override):
     ydl_opts = {
-        'progress_hooks': [lambda x: download_hook(x, starting_time, duration, final_filename, override)],
-        'format': 'best',
-        'outtmpl': './raw_downloads/%(id)s.mp4',
+        #'progress_hooks': [download_hook_report],
+        'format': 'bv',
+        'outtmpl': './raw_downloads/video/%(id)s',
         'quiet': 'true'
     }
-    print("Downloading " + video_link + "...")
-    result = YoutubeDL(ydl_opts).download([video_link])
+    print("Downloading video of " + video_link + "...")
+    # YoutubeDL(ydl_opts).download([video_link])
+    ydl_opts = {
+        #'progress_hooks': [lambda x: download_hook(x, starting_time, duration, final_filename, override)],
+        'format': 'bestvideo+bestaudio',
+        'outtmpl': './raw_downloads/%(id)s',
+        #'quiet': 'true'
+    }
+    ydl = YoutubeDL(ydl_opts)
+    ydl.add_post_processor(TrimPostProcessor(starting_time, duration, final_filename, override))
+    ydl.download([video_link])
+    print("Downloading audio of " + video_link + "...")
 
 
 def cut_video(video_name, starting_time, duration, filename, override):
