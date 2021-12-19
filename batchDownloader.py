@@ -36,7 +36,7 @@ def cut_video(video_name, starting_time, duration, filename, override):
         FFmpeg(
             global_options=global_options,
             inputs={video_name: None},
-            outputs={'./output/' + filename: '-ss ' + starting_time + ' -t ' + duration + ' -c copy'}
+            outputs={'./output/' + filename: '-ss ' + starting_time + ' -t ' + duration}
         ).run()
     except FFRuntimeError:
         print("Error when cutting video " + video_name + "!")
