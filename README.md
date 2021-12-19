@@ -1,4 +1,7 @@
 # BatchYoutubeDownloader
+
+[![forthebadge](https://forthebadge.com/images/badges/60-percent-of-the-time-works-every-time.svg)](https://forthebadge.com) ![GitHub top language](https://img.shields.io/github/languages/top/c0derMo/batchyoutubedownloader?style=for-the-badge)
+
 A tool for downloading a list of YouTube videos, and cutting them to size with a set starting point & duration for each video.
 
 This tool uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [ffmpy](https://github.com/Ch00k/ffmpy).

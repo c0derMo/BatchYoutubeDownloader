@@ -1,2 +1,9 @@
+# IDE / Editor specific
 .vscode
 env
+
+# Folders & files when running the script
+output
+raw_downloads
+list
+testing_list
