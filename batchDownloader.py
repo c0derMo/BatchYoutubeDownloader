@@ -10,59 +10,43 @@ import glob
 
 
 class TrimPostProcessor(PostProcessor):
-    def __init__(self, starting_time, duration, final_filename, override):
+    def __init__(self, starting_time, duration, final_filename, arguments):
         super().__init__(self)
-        self.starting_time = starting_time
-        self.duration = duration
+        self.starting_time = subtract_from_time(starting_time, seconds=arguments.begin_offset)
+        self.duration = add_to_time(duration, seconds=arguments.duration_offset)
         self.final_filename = final_filename
-        self.override = override
+        self.arguments = arguments
     def run(self, info):
-        cut_video(info.get("filepath"), self.starting_time, self.duration, self.final_filename, self.override)
+        print("Cutting video " + info.get("filepath") + " from " + self.starting_time + " with length " + self.duration + "...")
+        global_options = ""
+        if self.arguments.override:
+            global_options += "-y "
+        else:
+            global_options += "-n "
+        if not self.arguments.verbose:
+            global_options += '-hide_banner -loglevel error'
+        try:
+            FFmpeg(
+                global_options=global_options,
+                inputs={info.get("filepath"): None},
+                outputs={'./output/' + self.final_filename: '-ss ' + self.starting_time + ' -t ' + self.duration}
+            ).run()
+        except FFRuntimeError:
+            print("Error when cutting video " + info.get("filepath") + "!")
         return [], info
 
-def download_hook(d, starting_time, duration, final_filename, override):
-    if d.get("status") == "finished":
-        print("")
-        print("Finished downloading audio as " + d.get("filename") + ".")
-        print("Cutting video " + d.get("filename") + " from starting time " + starting_time + " to duration " + duration + "...")
-        cut_video(d.get("filename"), starting_time, duration, final_filename, override)
-        print("Saved final video as " + final_filename + ".")
 
-
-def download_video(video_link, starting_time, duration, final_filename, override):
+def download_video(video, final_filename, args):
+    print("Downloading video of " + video[0] + "...")
     ydl_opts = {
-        #'progress_hooks': [download_hook_report],
-        'format': 'bv',
-        'outtmpl': './raw_downloads/video/%(id)s',
-        'quiet': 'true'
-    }
-    print("Downloading video of " + video_link + "...")
-    # YoutubeDL(ydl_opts).download([video_link])
-    ydl_opts = {
-        #'progress_hooks': [lambda x: download_hook(x, starting_time, duration, final_filename, override)],
         'format': 'bestvideo+bestaudio',
         'outtmpl': './raw_downloads/%(id)s',
-        #'quiet': 'true'
+        'keepvideo': args.keep_original,
+        'quiet': not args.verbose
     }
     ydl = YoutubeDL(ydl_opts)
-    ydl.add_post_processor(TrimPostProcessor(starting_time, duration, final_filename, override))
-    ydl.download([video_link])
-    print("Downloading audio of " + video_link + "...")
-
-
-def cut_video(video_name, starting_time, duration, filename, override):
-    if override:
-        global_options = "-y -hide_banner -loglevel error"
-    else:
-        global_options = "-n -hide_banner -loglevel error"
-    try:
-        FFmpeg(
-            global_options=global_options,
-            inputs={video_name: None},
-            outputs={'./output/' + filename: '-ss ' + starting_time + ' -t ' + duration}
-        ).run()
-    except FFRuntimeError:
-        print("Error when cutting video " + video_name + "!")
+    ydl.add_post_processor(TrimPostProcessor(video[1], video[2], final_filename, args))
+    ydl.download([video[0]])
 
 
 def add_to_time(time, hours=0, minutes=0, seconds=0):
@@ -104,6 +88,8 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--override', action='store_true', help="Override existing files in output folder.")
     parser.add_argument('-i', '--ignore_errors', action='store_true', help="Ignore errors in the supplied list. Invalid lines will be fully ignored.")
     parser.add_argument('-c', '--clean', action='store_true', help="Clean the raw_downloads directory after finishing, removing all the non-cut videos to free up disk space.")
+    parser.add_argument('-k', '--keep-original', action='store_true', help='Instruct yt-dlp to keep the unmerged files. Takes up additional disk space.')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose logging for yt-dlp and ffmpeg.')
     args = parser.parse_args()
 
     Path("./raw_downloads").mkdir(exist_ok=True)
@@ -137,7 +123,7 @@ if __name__ == '__main__':
     print("Parsed " + args.list + " with " + str(len(parsed_video_list)) + " videos.")
     for (idx, video) in enumerate(parsed_video_list, 1):
         print("==[ Video #" + str(idx) + " ]==")
-        download_video(video[0], video[1], video[2], str(idx) + ".mp4", args.override)
+        download_video(video, str(idx) + ".mp4", args)
     print("Finished downloading videos!")
     if args.clean:
         print("Cleaning ./raw_downloads folder...")
