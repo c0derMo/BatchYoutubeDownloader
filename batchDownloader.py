@@ -111,18 +111,23 @@ if __name__ == '__main__':
             if not args.ignore_errors:
                 sys.exit(1)
             else:
+                parsed_video_list.append(("", "", ""))
                 continue
         if not re.match("\d+:\d+:\d+", splitted_line[1]) or not re.match("\d+:\d+:\d+", splitted_line[2]):
             print("Line " + str(line_number) + " isn't formatted correctly! Times aren't formatted as HH:MM:SS.")
             if not args.ignore_errors:
                 sys.exit(1)
             else:
+                parsed_video_list.append(("", "", ""))
                 continue
-        parsed_video_list.append((splitted_line[0], subtract_from_time(splitted_line[1], seconds=args.begin_offset), add_to_time(splitted_line[2], seconds=args.duration_offset)))
+        parsed_video_list.append((splitted_line[0], splitted_line[1], splitted_line[2]))
     
     print("Parsed " + args.list + " with " + str(len(parsed_video_list)) + " videos.")
     for (idx, video) in enumerate(parsed_video_list, 1):
         print("==[ Video #" + str(idx) + " ]==")
+        if video[0] == "":
+            print("Invalid formatted video, ignoring")
+            continue
         download_video(video, str(idx) + ".mp4", args)
     print("Finished downloading videos!")
     if args.clean:
